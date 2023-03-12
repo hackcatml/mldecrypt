@@ -1,0 +1,4 @@
+module shellexec {
+  header "shellexec.h"
+  export *
+}

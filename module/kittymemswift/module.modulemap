@@ -1,0 +1,4 @@
+module kittymemswift {
+  header "kittymemswift.h"
+  export *
+}
