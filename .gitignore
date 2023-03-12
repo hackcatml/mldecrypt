@@ -9,3 +9,4 @@ xcuserdata/
 .theos/
 packages/
 .DS_Store
+.swiftpm/
