@@ -87,7 +87,7 @@ func imageObserver(_ mh: UnsafePointer<mach_header>?, _ vmaddr_slide: Int) -> Vo
     }
     S.imageObserverImage_counter += 1
 
-    if(String(cString: image_name!).contains(Bundle.main.executablePath!)){
+    if String(cString: image_name!) == Bundle.main.executablePath! {
         image_index = S.imageObserverImage_counter - 1
         target_imgName = image_name
     }
