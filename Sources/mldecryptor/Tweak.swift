@@ -60,11 +60,12 @@ func dumpstart(_ targetImgName: UnsafeMutablePointer<Int8>?) {
         }
         
         var buff = [UInt8](repeating: 0, count: 4)
-        lseek(fd_dest, off_t(offset_cryptoff), SEEK_SET)
-        write(fd_dest, &buff, 4)
-        
-        lseek(fd_dest, off_t(offset_cryptsize), SEEK_SET)
-        write(fd_dest, &buff, 4)
+        // Don't have to nullify offset_cryptoff, offset_cryptsize
+//        lseek(fd_dest, off_t(offset_cryptoff), SEEK_SET)
+//        write(fd_dest, &buff, 4)
+//
+//        lseek(fd_dest, off_t(offset_cryptsize), SEEK_SET)
+//        write(fd_dest, &buff, 4)
         
         lseek(fd_dest, off_t(offset_cryptid), SEEK_SET)
         write(fd_dest, &buff, 4)

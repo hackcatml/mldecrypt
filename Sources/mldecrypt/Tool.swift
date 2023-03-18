@@ -45,12 +45,20 @@ func createIpa(bundleId: String) -> Int {
         // Do copy again...
         try Filesystem().copyDirectory(sourcePath: tmpPath.path, destinationPath: workPath.appendingPathComponent("Payload").path, followSymlinks: false)
         
-        // Replace a original binary file with a decrypted one
+        // Replace a original binary file with a dumped one
         let appResourceDir = (AppUtils.sharedInstance().searchAppResourceDir(bundleId)! as NSString).lastPathComponent
         let fileToReplace = workPath.appendingPathComponent("Payload").path + "/\(appResourceDir)/\(bundleExecutable)"
         let replacementFile = "/var/mobile/Documents/\(bundleExecutable).decrypted"
         try fileMgr.removeItem(atPath: fileToReplace)
         try fileMgr.copyItem(atPath: replacementFile, toPath: fileToReplace)
+        
+        // Remove files in the Payload dir except for .app dir
+        let directoryContents = try fileMgr.contentsOfDirectory(at: workPath.appendingPathComponent("Payload"), includingPropertiesForKeys: nil)
+        for fileUrl in directoryContents {
+            if !fileUrl.lastPathComponent.hasSuffix(".app") {
+                try fileMgr.removeItem(at: fileUrl)
+            }
+        }
 
         // Remove the temp path
         try fileMgr.removeItem(atPath: tmpPath.path)
