@@ -17,6 +17,12 @@ Dump binary & backup ipa:
 mldecrypt -b <bundleId>
 ```
 
+Dump or Dump & backup during runtime thanks to [opainject](https://github.com/opa334/opainject)
+```
+mldecrypt -r <bundleId>
+mldecrypt -r -b <bundleId>
+```
+
 # Build
 1. Need to install [Jinx framework](https://github.com/Paisseon/Jinx)<br>
 2. Copy all the modules from the `module` directory to the `theos include` directory
@@ -35,3 +41,4 @@ make clean && make package
 - [Zip](https://github.com/marmelroy/Zip.git)
 - [swift-progress-bar](https://github.com/nsscreencast/469-swift-command-line-progress-bar)
 - [cda](https://github.com/ay-kay/cda)
+- [opainject](https://github.com/opa334/opainject)

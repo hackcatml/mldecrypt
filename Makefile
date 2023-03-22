@@ -21,6 +21,9 @@ MOD_LOC = $(XCDD_TOP)$(XCDD_MID)$(XCDD_BOT)/$(MOD_NAME)/Zip
 
 TOOL_NAME = mldecrypt
 $(TOOL_NAME)_FILES = $(shell find Sources/$(TOOL_NAME) -name '*.swift') $(wildcard $(shell find $(MOD_LOC) -name '*.swift')) $(shell find $(THEOS)/include/Minizip -name '*.c') $(shell find $(THEOS)/include/cdaswift -name '*.mm')
+$(TOOL_NAME)_FILES += $(wildcard Sources/include/opainject/*.m)
+$(TOOL_NAME)_CFLAGS = -w
+$(TOOL_NAME)_SWIFTFLAGS = -ISources/include
 $(TOOL_NAME)_INSTALL_PATH = /usr/local/bin
 $(TOOL_NAME)_PRIVATE_FRAMEWORKS = MobileCoreServices
 
@@ -30,7 +33,12 @@ $(LIBRARY_NAME)_CFLAGS = -fobjc-arc -w
 $(LIBRARY_NAME)_LIBRARIES = substrate
 
 before-package::
-	ldid -S $(THEOS_STAGING_DIR)/usr/local/bin/$(TOOL_NAME);
+	ldid -S./entitlements.plist $(THEOS_STAGING_DIR)/usr/local/bin/$(TOOL_NAME);
+	
+# intel mac ldid doesn't work...push entitlements.plist and do ldid on the device
+after-install::
+	scp -P2222 entitlements.plist root@localhost:~/
+	install.exec "ldid -Sentitlements.plist /usr/local/bin/mldecrypt"
 	
 include $(THEOS)/makefiles/common.mk
 include $(THEOS_MAKE_PATH)/tool.mk

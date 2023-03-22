@@ -2,6 +2,10 @@ import Foundation
 import os
 import Zip
 import cdaswift
+import opainject
+
+let MACH_PORT_NULL_SWIFT: mach_port_name_t = 0
+let MACH_PORT_DEAD_SWIFT: mach_port_name_t = ~0
 
 // Create temp path
 func randomStringInLength(_ len: Int) -> String {
@@ -120,11 +124,96 @@ func setDecryptTarget(set: Bool, bundleId: String) -> Void {
     }
 }
 
+func backup(arguments: [String], bundleId: String) -> Void {
+    let documentsURL = URL(string: "/var/mobile/Documents")!
+    let filelist = try! FileManager.default.contentsOfDirectory(atPath: documentsURL.path)
+    let bundleExecutable = AppUtils.sharedInstance().searchAppExecutable(bundleId)!
+    for file in filelist {
+        if file == bundleExecutable + ".decrypted" {
+            if arguments.count == 3 && arguments[1].contains("-b") || arguments.contains("-b") {
+                if createIpa(bundleId: bundleId) != 0 {
+                    print("Something went wrong while create ipa. retry")
+                    exit(1)
+                }
+            }
+            print("Done!")
+            print("Decrypted at \(documentsURL.appendingPathComponent(bundleExecutable +  ".decrypted").path)")
+            if arguments.count == 3 && arguments[1].contains("-b") || arguments.contains("-b") {
+                print("ipa created at \(documentsURL.appendingPathComponent(bundleExecutable + ".ipa").path)\n")
+            }
+            setDecryptTarget(set: false, bundleId: bundleId)
+            exit(0)
+        }
+    }
+    // Kill the failed app process
+    print("Something went wrong. retry\n")
+    print("\(task(launchPath: "/usr/bin/killall", arguments: "-QUIT", "\(bundleExecutable)"))")
+    exit(1)
+}
+
+func opainject(arguments: [String]) -> Void {
+    guard let index = arguments.firstIndex(where: { $0 != "-r" && $0 != "-b" && $0 != arguments[0]}) else {
+        print(helpString)
+        exit(1)
+    }
+    
+    let bundleId = arguments[index]
+    let pid: String = task(launchPath: "/bin/bash", arguments: "-c", "ps ax | grep '\(AppUtils.sharedInstance().searchAppExecutable(bundleId)!)' | grep -v grep | cut -d' ' -f 1")
+    guard pid != "" else {
+        print("pid is not found")
+        exit(1)
+    }
+    
+    print("OPAINJECT HERE WE ARE")
+    print("RUNNING AS \(getuid())")
+    
+    let targetPid = atoi(pid)
+    let dylibPath = "/Library/MobileSubstrate/DynamicLibraries/mldecryptor.dylib"
+    guard access(dylibPath, R_OK) >= 0 else {
+        print("ERROR: Can't access passed dylib at \(dylibPath)")
+        exit(-4)
+    }
+    
+    setDecryptTarget(set: true, bundleId: bundleId)
+    
+    var procTask: task_t = 0
+    let kret = task_for_pid(mach_task_self_, targetPid, &procTask)
+    guard kret == KERN_SUCCESS else {
+        print("ERROR: task_for_pid failed with error code \(kret) (\(String(cString: mach_error_string(kret))))")
+        exit(-2)
+    }
+    guard procTask != MACH_PORT_DEAD_SWIFT && procTask != MACH_PORT_NULL_SWIFT else {
+        print("ERROR: Got invalid task port (\(procTask))")
+        exit(-3)
+    }
+
+    print("Got task port \(procTask) for pid \(targetPid)!")
+
+    var dyldInfo = task_dyld_info_data_t()
+    var count = mach_msg_type_number_t(MemoryLayout<task_dyld_info_data_t>.size / MemoryLayout<natural_t>.size)
+    let _ = withUnsafeMutablePointer(to: &dyldInfo) { dyldInfoPtr in
+        task_info(procTask, task_flavor_t(TASK_DYLD_INFO), dyldInfoPtr.withMemoryRebound(to: Int32.self, capacity: MemoryLayout<task_dyld_info_data_t>.size) { return $0 }, &count)
+    }
+
+    injectDylibViaRop(procTask, targetPid, dylibPath, vm_address_t(dyldInfo.all_image_info_addr))
+
+    mach_port_deallocate(mach_task_self_, procTask)
+    
+    if arguments.contains("-b") {
+        sleep(4)
+        backup(arguments: arguments, bundleId: bundleId)
+    }
+    
+    exit(0)
+}
+
 let helpString: String = """
 \nUsage:
 \tmldecrypt list, -l\t\tList installed applications
-\tmldecrypt <bundleId>\t\tOnly decrypt binary
-\tmldecrypt -b <bundleId>\t\tDecrypt binary & backup ipa
+\tmldecrypt <bundleId>\t\tOnly dump binary
+\tmldecrypt -r <bundleId>\t\tOnly dump binary during runtime
+\tmldecrypt -b <bundleId>\t\tDump binary & backup ipa
+\tmldecrypt -r -b <bundleId>\tDump binary & backup ipa during runtime
 \tmldecrypt help, -h\t\tShow help\n
 """
 
@@ -145,6 +234,8 @@ public struct mldecrypt {
         } else if arguments[1].contains("help") || arguments[1].contains("-h") {
             print(helpString)
             exit(0)
+        } else if arguments.contains("-r") {
+            opainject(arguments: arguments)
         } else if arguments.count == 2 || (arguments.count == 3 && arguments[1].contains("-b")) {
             let bundleId = arguments.count == 2 ? arguments[1] : arguments[2]
             
@@ -159,30 +250,7 @@ public struct mldecrypt {
             workspace.perform(Selector(("openApplicationWithBundleID:")), with: bundleId)
             
             sleep(3)
-            let documentsURL = URL(string: "/var/mobile/Documents")!
-            let filelist = try! FileManager.default.contentsOfDirectory(atPath: documentsURL.path)
-            let bundleExecutable = AppUtils.sharedInstance().searchAppExecutable(bundleId)!
-            for file in filelist {
-                if file == bundleExecutable + ".decrypted" {
-                    if arguments.count == 3 && arguments[1].contains("-b") {
-                        if createIpa(bundleId: bundleId) != 0 {
-                            print("Something went wrong while create ipa. retry")
-                            exit(1)
-                        }
-                    }
-                    print("Done!")
-                    print("Decrypted at \(documentsURL.appendingPathComponent(bundleExecutable +  ".decrypted").path)")
-                    if arguments.count == 3 && arguments[1].contains("-b") {
-                        print("ipa created at \(documentsURL.appendingPathComponent(bundleExecutable + ".ipa").path)\n")
-                    }
-                    setDecryptTarget(set: false, bundleId: bundleId)
-                    exit(0)
-                }
-            }
-            // Kill the failed app process
-            print("Something went wrong. retry\n")
-            print("\(task(launchPath: "/usr/bin/killall", arguments: "-QUIT", "\(bundleExecutable)"))")
-            exit(1)
+            backup(arguments: arguments, bundleId: bundleId)
         } else {
             print(helpString)
             exit(1)

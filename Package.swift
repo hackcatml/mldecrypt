@@ -46,7 +46,7 @@ let swiftFlags: [String] = [
     "-F\(theosPath)/lib",
     "-I\(theosPath)/vendor/include",
     "-I\(theosPath)/include",
-//    "-I\(packageRoot.path)/Sources/include",
+    "-I\(packageRoot.path)/Sources/include",
     "-target", "arm64-apple-ios\(theos.target)",
     "-sdk", theos.sdk,
     "-resource-dir", theos.resources

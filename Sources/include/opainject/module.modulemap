@@ -1,0 +1,4 @@
+module opainject {
+  header "opainject.h"
+  export *
+}
