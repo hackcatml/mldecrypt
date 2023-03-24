@@ -158,7 +158,7 @@ func opainject(arguments: [String]) -> Void {
     }
     
     let bundleId = arguments[index]
-    let pid: String = task(launchPath: "/bin/bash", arguments: "-c", "ps ax | grep '\(AppUtils.sharedInstance().searchAppExecutable(bundleId)!)' | grep -v grep | cut -d' ' -f 1")
+    let pid: String = task(launchPath: "/bin/bash", arguments: "-c", "ps -ef | grep '\(AppUtils.sharedInstance().searchAppExecutable(bundleId)!)' | grep -v grep | tr -s ' ' | cut -d' ' -f 3")
     guard pid != "" else {
         print("pid is not found")
         exit(1)
