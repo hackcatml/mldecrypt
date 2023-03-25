@@ -158,16 +158,31 @@ func opainject(arguments: [String]) -> Void {
     }
     
     let bundleId = arguments[index]
-    let pid: String = task(launchPath: "/bin/bash", arguments: "-c", "ps -ef | grep '\(AppUtils.sharedInstance().searchAppExecutable(bundleId)!)' | grep -v grep | tr -s ' ' | cut -d' ' -f 3")
-    guard pid != "" else {
-        print("pid is not found")
+    
+    let processList = Getpid()
+    guard let processes = processList.processes else {
+        print("Failed to retrieve process list.")
+        exit(1)
+    }
+    var targetPid: Int32 = 0
+    for process in processes {
+        let pid = process.kp_proc.p_pid
+        let name = withUnsafePointer(to: process.kp_proc.p_comm) {
+            String(cString: UnsafeRawPointer($0).assumingMemoryBound(to: CChar.self))
+        }
+        if name.contains(AppUtils.sharedInstance().searchAppExecutable(bundleId)!) {
+            targetPid = Int32(pid)
+            break
+        }
+    }
+    guard targetPid != 0 else {
+        print("Cannot find pid for \(bundleId)")
         exit(1)
     }
     
     print("OPAINJECT HERE WE ARE")
     print("RUNNING AS \(getuid())")
     
-    let targetPid = atoi(pid)
     let dylibPath = "/Library/MobileSubstrate/DynamicLibraries/mldecryptor.dylib"
     guard access(dylibPath, R_OK) >= 0 else {
         print("ERROR: Can't access passed dylib at \(dylibPath)")
