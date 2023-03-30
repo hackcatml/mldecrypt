@@ -36,9 +36,9 @@ before-package::
 	ldid -S./entitlements.plist $(THEOS_STAGING_DIR)/usr/local/bin/$(TOOL_NAME);
 	
 # if ldid doesn't work...push entitlements.plist and do ldid on the device
-#after-install::
-#	scp -P2222 entitlements.plist root@localhost:~/
-#	install.exec "ldid -Sentitlements.plist /usr/local/bin/mldecrypt"
+after-install::
+	scp -P2222 entitlements.plist root@localhost:~/
+	install.exec "ldid -Sentitlements.plist /usr/local/bin/mldecrypt"
 	
 include $(THEOS)/makefiles/common.mk
 include $(THEOS_MAKE_PATH)/tool.mk
