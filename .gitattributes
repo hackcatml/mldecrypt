@@ -1,2 +1,2 @@
-module/* linguist-vendored
+module/**/* linguist-vendored
 Sources/include/opainject/* linguist-vendored
