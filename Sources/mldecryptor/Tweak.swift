@@ -103,6 +103,7 @@ func imageObserver(_ mh: UnsafePointer<mach_header>?, _ vmaddr_slide: Int) -> Vo
 struct Tweak {
     static func ctor() {
         // Code goes here
+        os_log("[hackcatml] mldecrytor start")
         image_count = _dyld_image_count()
         _dyld_register_func_for_add_image(imageObserver)
     }

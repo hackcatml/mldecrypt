@@ -1,7 +1,7 @@
 {
 	Filter = {
 		Bundles = (
-			"com.apple.springboard",
+			"com.hack.catml",
 		);
 	};
 }

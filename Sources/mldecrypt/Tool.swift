@@ -7,6 +7,15 @@ import opainject
 let MACH_PORT_NULL_SWIFT: mach_port_name_t = 0
 let MACH_PORT_DEAD_SWIFT: mach_port_name_t = ~0
 
+// Check if it's rootless
+func isRootless() -> Bool {
+    let rootlessPath = "/var/jb/usr/bin/su"
+    if access(rootlessPath, F_OK) == 0 {
+        return true
+    }
+    return false
+}
+
 // Create temp path
 func randomStringInLength(_ len: Int) -> String {
     let letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -96,7 +105,10 @@ func createIpa(bundleId: String) -> Int {
 }
 
 func setDecryptTarget(set: Bool, bundleId: String) -> Void {
-    let filename = "/Library/MobileSubstrate/DynamicLibraries/mldecryptor.plist"
+    var filename = "/Library/MobileSubstrate/DynamicLibraries/mldecryptor.plist"
+    if isRootless() {
+        filename = "/var/jb" + filename
+    }
     let prefs = NSMutableDictionary(contentsOfFile: filename)!
     let FilterPrefs = prefs.value(forKey: "Filter") as! NSMutableDictionary
     let bundleExecutable = AppUtils.sharedInstance().searchAppExecutable(bundleId)
@@ -147,7 +159,11 @@ func backup(arguments: [String], bundleId: String) -> Void {
     }
     // Kill the failed app process
     print("Something went wrong. retry\n")
-    print("\(task(launchPath: "/usr/bin/killall", arguments: "-QUIT", "\(bundleExecutable)"))")
+    var command = "/usr/bin/killall"
+    if isRootless() {
+        command = "/var/jb/usr/bin/killall"
+    }
+    print("\(task(launchPath: command, arguments: "-QUIT", "\(bundleExecutable)"))")
     exit(1)
 }
 
@@ -183,7 +199,10 @@ func opainject(arguments: [String]) -> Void {
     print("OPAINJECT HERE WE ARE")
     print("RUNNING AS \(getuid())")
     
-    let dylibPath = "/Library/MobileSubstrate/DynamicLibraries/mldecryptor.dylib"
+    var dylibPath = "/Library/MobileSubstrate/DynamicLibraries/mldecryptor.dylib"
+    if isRootless() {
+        dylibPath = "/var/jb" + dylibPath
+    }
     guard access(dylibPath, R_OK) >= 0 else {
         print("ERROR: Can't access passed dylib at \(dylibPath)")
         exit(-4)
