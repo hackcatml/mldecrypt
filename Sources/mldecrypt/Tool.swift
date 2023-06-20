@@ -42,21 +42,18 @@ func createIpa(bundleId: String) -> Int {
     
     // source path
     let src: String! = AppUtils.sharedInstance().searchAppBundleDir(bundleId)
-    // Define temp dest path
-    var tmpPath = URL(string: "com.hackcatml.mldecrypt.\(randomStringInLength(6))")!
-    tmpPath = URL(string: NSTemporaryDirectory())!.appendingPathComponent(tmpPath.path)
     // Define real work path
     var workPath = URL(string: "com.hackcatml.mldecrypt.\(randomStringInLength(6))")!
     workPath = URL(string: NSTemporaryDirectory())!.appendingPathComponent(workPath.path)
     let bundleExecutable = AppUtils.sharedInstance().searchAppExecutable(bundleId)!
     
     do {
-        // Do copy
-        try Filesystem().copyDirectory(sourcePath: src, destinationPath: tmpPath.path, followSymlinks: false)
+        let srcURL = URL(fileURLWithPath: src)
+        let dstURL = URL(fileURLWithPath: workPath.appendingPathComponent("Payload").path)
         // Create real work path
         try fileMgr.createDirectory(atPath: workPath.path, withIntermediateDirectories: true, attributes: nil)
-        // Do copy again...
-        try Filesystem().copyDirectory(sourcePath: tmpPath.path, destinationPath: workPath.appendingPathComponent("Payload").path, followSymlinks: false)
+        // Do copy
+        try fileMgr.copyItem(at: srcURL, to: dstURL)
         
         // Replace a original binary file with a dumped one
         let appResourceDir = (AppUtils.sharedInstance().searchAppResourceDir(bundleId)! as NSString).lastPathComponent
@@ -72,9 +69,6 @@ func createIpa(bundleId: String) -> Int {
                 try fileMgr.removeItem(at: fileUrl)
             }
         }
-
-        // Remove the temp path
-        try fileMgr.removeItem(atPath: tmpPath.path)
     }
     catch {
         print("Something went wrong while copying: \(error.localizedDescription)")

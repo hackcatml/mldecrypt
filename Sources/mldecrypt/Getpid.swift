@@ -16,7 +16,7 @@ public struct Getpid {
     
     private func getProcessList() -> [kinfo_proc]? {
         var name = [CTL_KERN, KERN_PROC, KERN_PROC_ALL]
-        var nameSize = name.count
+        let nameSize = name.count
 
         var size: Int = 0
         sysctl(&name, u_int(nameSize), nil, &size, nil, 0)
