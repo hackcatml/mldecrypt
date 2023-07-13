@@ -62,6 +62,13 @@ func createIpa(bundleId: String) -> Int {
         try fileMgr.removeItem(atPath: fileToReplace)
         try fileMgr.copyItem(atPath: replacementFile, toPath: fileToReplace)
         
+        // Fakesigning with ldid
+        var command = "/usr/bin/ldid"
+        if isRootless() {
+            command = "/var/jb" + command
+        }
+        let _ = task(launchPath: command, arguments: "-S", "\(fileToReplace)")
+        
         // Remove files in the Payload dir except for .app dir
         let directoryContents = try fileMgr.contentsOfDirectory(at: workPath.appendingPathComponent("Payload"), includingPropertiesForKeys: nil)
         for fileUrl in directoryContents {
@@ -155,7 +162,7 @@ func backup(arguments: [String], bundleId: String) -> Void {
     print("Something went wrong. retry\n")
     var command = "/usr/bin/killall"
     if isRootless() {
-        command = "/var/jb/usr/bin/killall"
+        command = "/var/jb" + command
     }
     print("\(task(launchPath: command, arguments: "-QUIT", "\(bundleExecutable)"))")
     exit(1)
