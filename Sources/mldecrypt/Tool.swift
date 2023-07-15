@@ -4,8 +4,26 @@ import Zip
 import cdaswift
 import opainject
 
-let MACH_PORT_NULL_SWIFT: mach_port_name_t = 0
-let MACH_PORT_DEAD_SWIFT: mach_port_name_t = ~0
+let MACH_PORT_NULL: mach_port_name_t = 0
+let MACH_PORT_DEAD: mach_port_name_t = ~mach_port_name_t(0)
+
+// Check if it's arm64e device
+func isArm64eDevice() -> Bool {
+    var systemInfo = utsname()
+    uname(&systemInfo)
+    let machineMirror = Mirror(reflecting: systemInfo.machine)
+    let identifier = machineMirror.children.reduce("") { identifier, element in
+        guard let value = element.value as? Int8, value != 0 else { return identifier }
+        return identifier + String(UnicodeScalar(UInt8(value)))
+    }
+
+    let components = identifier.split(separator: ",")
+    let iPhoneNumberString = components.first?.replacingOccurrences(of: "iPhone", with: "")
+    if let iPhoneNumber = Int(iPhoneNumberString ?? "") {
+        return iPhoneNumber > 10
+    }
+    return false
+}
 
 // Check if it's rootless
 func isRootless() -> Bool {
@@ -197,6 +215,17 @@ func opainject(arguments: [String]) -> Void {
         exit(1)
     }
     
+    if isArm64eDevice() {
+        var pacArg: UnsafeMutablePointer<Int8>? = nil
+        if CommandLine.argc >= 4 {
+            pacArg = CommandLine.unsafeArgv[3]
+        }
+        if pacArg == nil || String(cString: pacArg!) != "pac" {
+            spawnPacChild(CommandLine.argc, CommandLine.unsafeArgv)
+            exit(0)
+        }
+    }
+    
     print("OPAINJECT HERE WE ARE")
     print("RUNNING AS \(getuid())")
     
@@ -217,7 +246,7 @@ func opainject(arguments: [String]) -> Void {
         print("ERROR: task_for_pid failed with error code \(kret) (\(String(cString: mach_error_string(kret))))")
         exit(-2)
     }
-    guard procTask != MACH_PORT_DEAD_SWIFT && procTask != MACH_PORT_NULL_SWIFT else {
+    guard procTask != MACH_PORT_DEAD && procTask != MACH_PORT_NULL else {
         print("ERROR: Got invalid task port (\(procTask))")
         exit(-3)
     }

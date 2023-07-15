@@ -1,5 +1,3 @@
-#include <Foundation/Foundation.h>
-
 extern vm_address_t getRemoteImageAddress(task_t task, vm_address_t imageStartPtr, const char* imageName);
 extern vm_address_t remoteDlSym(task_t task, vm_address_t imageStartPtr, const char* symbolName);
 extern vm_address_t remoteDlSymFindImage(task_t task, vm_address_t allImageInfoAddr, const char* symbolName, char** imageOut);

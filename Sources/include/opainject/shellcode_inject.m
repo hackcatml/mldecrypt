@@ -23,7 +23,7 @@
 #include <pthread.h>
 #include <pthread_spis.h>
 
-#import <mach/arm/thread_status.h>
+#include <mach/arm/thread_status.h>
 #import "dyld.h"
 #import "sandbox.h"
 #import <CoreFoundation/CoreFoundation.h>
