@@ -1,4 +1,0 @@
-module Zip {
-  header "Zip.h"
-  export *
-}

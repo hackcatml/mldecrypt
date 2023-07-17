@@ -1,11 +1,13 @@
 import Foundation
 import os
-import Zip
 import cdaswift
 import opainject
+import ZIPFoundation
 
 let MACH_PORT_NULL: mach_port_name_t = 0
 let MACH_PORT_DEAD: mach_port_name_t = ~mach_port_name_t(0)
+
+let documentsPath: String = "/var/mobile/Documents/"
 
 // Check if it's arm64e device
 func isArm64eDevice() -> Bool {
@@ -76,7 +78,7 @@ func createIpa(bundleId: String) -> Int {
         // Replace a original binary file with a dumped one
         let appResourceDir = (AppUtils.sharedInstance().searchAppResourceDir(bundleId)! as NSString).lastPathComponent
         let fileToReplace = workPath.appendingPathComponent("Payload").path + "/\(appResourceDir)/\(bundleExecutable)"
-        let replacementFile = "/var/mobile/Documents/\(bundleExecutable).decrypted"
+        let replacementFile = "\(documentsPath)\(bundleExecutable).decrypted"
         try fileMgr.removeItem(atPath: fileToReplace)
         try fileMgr.copyItem(atPath: replacementFile, toPath: fileToReplace)
         
@@ -102,19 +104,31 @@ func createIpa(bundleId: String) -> Int {
     
     // Zip
     do {
+        // Clean ipa first if it's already there
+        if let filesInDocumentsDir = try? fileMgr.contentsOfDirectory(atPath: "\(documentsPath)") {
+            for file in filesInDocumentsDir {
+                let filefullpath = "\(documentsPath)".appending((file as NSString).lastPathComponent)
+                if file == "\(bundleExecutable).ipa" {
+                    try? fileMgr.removeItem(atPath: filefullpath)
+                }
+            }
+        }
+        
         let buffer: StringBuffer = StringBuffer()
         var progressBar: ProgressBar = ProgressBar(output: buffer)
         
         let filePath = URL(fileURLWithPath: workPath.appendingPathComponent("Payload").path, isDirectory: true)
-        let zipFilePath = URL(fileURLWithPath: "/var/mobile/Documents/\(bundleExecutable).ipa", isDirectory: false)
-        try Zip.zipFiles(paths: [filePath], zipFilePath: zipFilePath, password: nil, progress: { (progress) in
-            progressBar.render(count: Int(progress * 100), total:100)
-            progress == 1 ?
+        let zipFilePath = URL(fileURLWithPath: "\(documentsPath)\(bundleExecutable).ipa", isDirectory: false)
+
+        let zipProgress = Progress()
+        let observation = zipProgress.observe(\.fractionCompleted) { progress, _ in
+            progressBar.render(count: Int(progress.fractionCompleted * 100), total:100)
+            progress.fractionCompleted == 1 ?
             { print("Zipping...\(buffer.string)"); fflush(stdout) }() :
             { print("Zipping...\(buffer.string)", terminator: "\r"); fflush(stdout) }()
-        })
-        // Remove the real work path
-        try fileMgr.removeItem(atPath: workPath.path)
+        }
+        try fileMgr.zipItem(at: filePath, to: zipFilePath, progress: zipProgress)
+        observation.invalidate()
         return 0
     }
     catch {
@@ -156,7 +170,7 @@ func setDecryptTarget(set: Bool, bundleId: String) -> Void {
 }
 
 func backup(arguments: [String], bundleId: String) -> Void {
-    let documentsURL = URL(string: "/var/mobile/Documents")!
+    let documentsURL = URL(string: documentsPath)!
     let filelist = try! FileManager.default.contentsOfDirectory(atPath: documentsURL.path)
     let bundleExecutable = AppUtils.sharedInstance().searchAppExecutable(bundleId)!
     for file in filelist {

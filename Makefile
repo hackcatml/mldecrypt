@@ -16,8 +16,8 @@ XCDD_TOP = $(HOME)/Library/Developer/Xcode/DerivedData/
 XCDD_MID = $(shell basename $(XCDD_TOP)/$(PWD)*)
 XCDD_BOT = /SourcePackages/checkouts
 
-MOD_NAME = Zip
-MOD_LOC = $(XCDD_TOP)$(XCDD_MID)$(XCDD_BOT)/$(MOD_NAME)/Zip
+MOD_NAME = ZIPFoundation
+MOD_LOC = $(XCDD_TOP)$(XCDD_MID)$(XCDD_BOT)/$(MOD_NAME)/Sources
 
 # Set rootless package scheme
 THEOS_PACKAGE_SCHEME =
@@ -27,7 +27,7 @@ endif
 
 # Define included files, imported frameworks, etc.
 TOOL_NAME = mldecrypt
-$(TOOL_NAME)_FILES = $(shell find Sources/$(TOOL_NAME) -name '*.swift') $(wildcard $(shell find $(MOD_LOC) -name '*.swift')) $(shell find $(THEOS)/include/Minizip -name '*.c') $(shell find $(THEOS)/include/cdaswift -name '*.mm')
+$(TOOL_NAME)_FILES = $(shell find Sources/$(TOOL_NAME) -name '*.swift') $(wildcard $(shell find $(MOD_LOC) -name '*.swift')) $(shell find $(THEOS)/include/cdaswift -name '*.mm')
 $(TOOL_NAME)_FILES += $(wildcard Sources/include/opainject/*.m)
 $(TOOL_NAME)_CFLAGS = -w
 $(TOOL_NAME)_SWIFTFLAGS = -ISources/include

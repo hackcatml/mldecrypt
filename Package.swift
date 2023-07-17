@@ -62,13 +62,13 @@ let package: Package = .init(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/marmelroy/Zip.git", branch: "master"),
+        .package(url: "https://github.com/weichsel/ZIPFoundation.git", .upToNextMajor(from: "0.9.0"))
     ],
     targets: [
         .target(
             name: "mldecrypt",
             dependencies: [
-                .product(name: "Zip", package: "Zip"),
+                .product(name:"ZIPFoundation", package: "ZIPFoundation")
             ],
             swiftSettings: [.unsafeFlags(swiftFlags)]
         ),
