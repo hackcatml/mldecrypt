@@ -38,7 +38,7 @@ make clean && make package
 - [dump-ios](https://codeshare.frida.re/@lichao890427/dump-ios/)
 - [Jinx](https://github.com/Paisseon/Jinx)
 - [KittyMemory](https://github.com/MJx0/KittyMemory)
-- [Zip](https://github.com/marmelroy/Zip.git)
+- [ZIPFoundation](https://github.com/weichsel/ZIPFoundation)
 - [swift-progress-bar](https://github.com/nsscreencast/469-swift-command-line-progress-bar)
 - [cda](https://github.com/ay-kay/cda)
 - [opainject](https://github.com/opa334/opainject)
