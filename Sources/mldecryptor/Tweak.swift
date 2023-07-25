@@ -7,11 +7,24 @@ var image_count: UInt32 = 0
 var image_index: UInt32 = 0
 var target_imgName: UnsafeMutablePointer<Int8>?
 
+// Check if it's rootless
+func isRootless() -> Bool {
+    let rootlessPath = "/var/jb/usr/bin/su"
+    if access(rootlessPath, F_OK) == 0 {
+        return true
+    }
+    return false
+}
+
 // https://github.com/lich4/personal_script/blob/master/Frida_script/ios_dump.js
 func dumpstart(_ targetImgName: UnsafeMutablePointer<Int8>?) {
     os_log("[hackcatml] binary dump started")
     
-    let dumpPath = "/var/mobile/Documents/" + URL(fileURLWithPath: Bundle.main.executablePath ?? "").lastPathComponent + ".decrypted"
+    var documentsPath = "/var/mobile/Documents/"
+    if isRootless() {
+        documentsPath = "/var/jb" + documentsPath
+    }
+    let dumpPath: String = documentsPath + URL(fileURLWithPath: Bundle.main.executablePath ?? "").lastPathComponent + ".decrypted"
     if FileManager.default.fileExists(atPath: dumpPath) {
         unlink(dumpPath)
     }

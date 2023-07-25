@@ -7,7 +7,7 @@ import ZIPFoundation
 let MACH_PORT_NULL: mach_port_name_t = 0
 let MACH_PORT_DEAD: mach_port_name_t = ~mach_port_name_t(0)
 
-let documentsPath: String = "/var/mobile/Documents/"
+var documentsPath: String = "/var/mobile/Documents/"
 
 // Check if it's arm64e device
 func isArm64eDevice() -> Bool {
@@ -47,8 +47,7 @@ func randomStringInLength(_ len: Int) -> String {
     return ret
 }
 
-func createIpa(bundleId: String) -> Int {
-    // Clean before
+func cleanTempDir() -> Void {
     let fileMgr = FileManager.default
     if let filesInTemp = try? fileMgr.contentsOfDirectory(atPath: NSTemporaryDirectory()) {
         for file in filesInTemp {
@@ -59,6 +58,12 @@ func createIpa(bundleId: String) -> Int {
             }
         }
     }
+}
+
+func createIpa(bundleId: String) -> Int {
+    let fileMgr = FileManager.default
+    // Clean before
+    cleanTempDir()
     
     // source path
     let src: String! = AppUtils.sharedInstance().searchAppBundleDir(bundleId)
@@ -87,7 +92,11 @@ func createIpa(bundleId: String) -> Int {
         if isRootless() {
             command = "/var/jb" + command
         }
-        let _ = task(launchPath: command, arguments: "-S", "\(fileToReplace)")
+        let out = task(launchPath: command, arguments: "-e", "\(fileToReplace)")
+        let entitlementsPath = "\(workPath)/ent.xml"
+        let data = out.data(using: .utf8)
+        fileMgr.createFile(atPath: entitlementsPath, contents: data)
+        let _ = task(launchPath: command, arguments: "-S\(entitlementsPath)", "\(fileToReplace)")
         
         // Remove files in the Payload dir except for .app dir
         let directoryContents = try fileMgr.contentsOfDirectory(at: workPath.appendingPathComponent("Payload"), includingPropertiesForKeys: nil)
@@ -99,6 +108,8 @@ func createIpa(bundleId: String) -> Int {
     }
     catch {
         print("Something went wrong while copying: \(error.localizedDescription)")
+        // Clean temp dir
+        cleanTempDir()
         return 1
     }
     
@@ -129,10 +140,14 @@ func createIpa(bundleId: String) -> Int {
         }
         try fileMgr.zipItem(at: filePath, to: zipFilePath, progress: zipProgress)
         observation.invalidate()
+        // Clean after
+        cleanTempDir()
         return 0
     }
     catch {
         print("Something went wrong while zipping: \(error.localizedDescription)")
+        // Clean after
+        cleanTempDir()
         return 1
     }
 }
@@ -177,7 +192,7 @@ func backup(arguments: [String], bundleId: String) -> Void {
         if file == bundleExecutable + ".decrypted" {
             if arguments.count == 3 && arguments[1].contains("-b") || arguments.contains("-b") {
                 if createIpa(bundleId: bundleId) != 0 {
-                    print("Something went wrong while create ipa. retry")
+                    print("Something went wrong while creating ipa. retry")
                     exit(1)
                 }
             }
@@ -191,7 +206,7 @@ func backup(arguments: [String], bundleId: String) -> Void {
         }
     }
     // Kill the failed app process
-    print("Something went wrong. retry\n")
+    print("Something went wrong while decrypting binary. retry\n")
     var command = "/usr/bin/killall"
     if isRootless() {
         command = "/var/jb" + command
@@ -303,6 +318,24 @@ public struct mldecrypt {
         guard arguments.count >= 2 else {
             print(helpString)
             exit(1)
+        }
+        
+        if isRootless() {
+            // create rooltess documents path if it's not exists
+            documentsPath = "/var/jb" + documentsPath
+            let fileManager = FileManager.default
+            if !fileManager.fileExists(atPath: documentsPath) {
+                do {
+                    try fileManager.createDirectory(atPath: documentsPath, withIntermediateDirectories: true, attributes: nil)
+                    var command = "/usr/bin/chown"
+                    if isRootless() {
+                        command = "/var/jb" + command
+                    }
+                    let _ = task(launchPath: command, arguments: "mobile:", "\(documentsPath)")
+                } catch {
+                    print("\(error.localizedDescription)")
+                }
+            }
         }
         
         if arguments[1].contains("list") || arguments[1].contains("-l") {
