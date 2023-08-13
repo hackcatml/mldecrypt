@@ -39,5 +39,6 @@
 - (NSString*)searchAppExecutable:(NSString*)bundleId;
 - (NSString*)searchAppResourceDir:(NSString*)bundleId;
 - (NSString*)searchAppBundleDir:(NSString*)bundleId;
+- (NSString*)searchAppDataDir:(NSString*)bundleId;
 
 @end

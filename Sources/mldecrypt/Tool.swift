@@ -185,6 +185,21 @@ func setDecryptTarget(set: Bool, bundleId: String) -> Void {
 }
 
 func backup(arguments: [String], bundleId: String) -> Void {
+    if isRootless() {
+        let decryptedFile = AppUtils.sharedInstance().searchAppExecutable(bundleId) + ".decrypted"
+        let appDocumentsPath = AppUtils.sharedInstance().searchAppDataDir(bundleId) + "/Documents/"
+        let decryptedFilePath = appDocumentsPath + decryptedFile
+        let srcURL = URL(fileURLWithPath: decryptedFilePath)
+        let dstURL = URL(fileURLWithPath: documentsPath + decryptedFile)
+        do {
+            try FileManager.default.copyItem(at: srcURL, to: dstURL)
+            try FileManager.default.removeItem(at: srcURL)
+        }
+        catch {
+            print("Error: \(error.localizedDescription)")
+        }
+    }
+    
     let documentsURL = URL(string: documentsPath)!
     let filelist = try! FileManager.default.contentsOfDirectory(atPath: documentsURL.path)
     let bundleExecutable = AppUtils.sharedInstance().searchAppExecutable(bundleId)!
@@ -221,36 +236,46 @@ func opainject(arguments: [String]) -> Void {
         exit(1)
     }
     
-    let bundleId = arguments[index]
-    
-    let processList = Getpid()
-    guard let processes = processList.processes else {
-        print("Failed to retrieve process list.")
-        exit(1)
-    }
     var targetPid: Int32 = 0
-    for process in processes {
-        let pid = process.kp_proc.p_pid
-        let name = withUnsafePointer(to: process.kp_proc.p_comm) {
-            String(cString: UnsafeRawPointer($0).assumingMemoryBound(to: CChar.self))
+    let bundleId = arguments[index]
+    if isArm64eDevice(), CommandLine.argc >= 5 {
+        let index = arguments.firstIndex(where: {
+            $0.allSatisfy({ $0.isNumber })
+        })
+        targetPid = Int32(arguments[index!])!
+    } else {
+        let processList = Getpid()
+        guard let processes = processList.processes else {
+            print("Failed to retrieve process list.")
+            exit(1)
         }
-        if name.contains(AppUtils.sharedInstance().searchAppExecutable(bundleId)!) {
-            targetPid = Int32(pid)
-            break
+        for process in processes {
+            let pid = process.kp_proc.p_pid
+            let name = withUnsafePointer(to: process.kp_proc.p_comm) {
+                String(cString: UnsafeRawPointer($0).assumingMemoryBound(to: CChar.self))
+            }
+            if name.contains(AppUtils.sharedInstance().searchAppExecutable(bundleId)!) {
+                targetPid = Int32(pid)
+                break
+            }
         }
-    }
-    guard targetPid != 0 else {
-        print("Cannot find pid for \(bundleId)")
-        exit(1)
+        guard targetPid != 0 else {
+            print("Cannot find pid for \(bundleId)")
+            exit(1)
+        }
     }
     
     if isArm64eDevice() {
         var pacArg: UnsafeMutablePointer<Int8>? = nil
-        if CommandLine.argc >= 4 {
-            pacArg = CommandLine.unsafeArgv[3]
+        if CommandLine.argc >= 5 {
+            pacArg = CommandLine.unsafeArgv[Int(CommandLine.argc) - 1]
         }
         if pacArg == nil || String(cString: pacArg!) != "pac" {
-            spawnPacChild(CommandLine.argc, CommandLine.unsafeArgv)
+            let pidString = String(targetPid)
+            let pidPtr = strdup(pidString)
+
+            CommandLine.unsafeArgv[Int(CommandLine.argc)] = pidPtr
+            spawnPacChild(CommandLine.argc + 1, CommandLine.unsafeArgv)
             exit(0)
         }
     }
@@ -294,6 +319,9 @@ func opainject(arguments: [String]) -> Void {
     
     if arguments.contains("-b") {
         sleep(4)
+        backup(arguments: arguments, bundleId: bundleId)
+    } else {
+        sleep(1)
         backup(arguments: arguments, bundleId: bundleId)
     }
     
@@ -346,6 +374,17 @@ public struct mldecrypt {
             print(helpString)
             exit(0)
         } else if arguments.contains("-r") {
+            var index = arguments.firstIndex(of: "-r")
+            if index != 1 {
+                print("\nUsage: mldecrypt -r <bundleId> || mldecrypt -r -b <bundleId>")
+                exit(1)
+            } else if arguments.contains("-b") {
+                index = arguments.firstIndex(of: "-b")
+                if index != 2 {
+                    print("\nUsage: mldecrypt -r <bundleId> || mldecrypt -r -b <bundleId>")
+                    exit(1)
+                }
+            }
             opainject(arguments: arguments)
         } else if arguments.count == 2 || (arguments.count == 3 && arguments[1].contains("-b")) {
             let bundleId = arguments.count == 2 ? arguments[1] : arguments[2]

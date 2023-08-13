@@ -12,7 +12,7 @@ void spawnPacChild(int argc, char *argv[])
     argsToPass[argc] = "pac";
     argsToPass[argc+1] = NULL;
 
-    pid_t targetPid = atoi(argv[1]);
+    pid_t targetPid = atoi(argv[argc - 1]);
     mach_port_t task;
     kern_return_t kr = KERN_SUCCESS;
     kr = task_for_pid(mach_task_self(), targetPid, &task);

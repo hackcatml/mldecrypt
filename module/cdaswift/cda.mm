@@ -40,20 +40,17 @@ static NSArray* apps;
 
 - (NSString*)searchAppExecutable:(NSString*)bundleId
 {
-    int i = 1;
     for(LSApplicationProxy* app in apps){
         NSString *identifier = app.bundleIdentifier;
         if([identifier isEqualToString:bundleId]){
             return app.bundleExecutable;
         }
-        i++;
     }
     return @"Nope";
 }
 
 - (NSString*)searchAppResourceDir:(NSString*)bundleId
 {
-    int i = 1;
     for(LSApplicationProxy* app in apps){
         NSString *identifier = app.bundleIdentifier;
         if([identifier isEqualToString:bundleId]){
@@ -62,21 +59,30 @@ static NSArray* apps;
             // printf("appResourceDir: %s", [appResourceDir UTF8String]);
             return appResourceDir;
         }
-        i++;
     }
     return @"Nope";
 }
 
 - (NSString*)searchAppBundleDir:(NSString*)bundleId
 {
-    int i = 1;
     for(LSApplicationProxy* app in apps){
         NSString* identifier = app.bundleIdentifier;
         if([identifier isEqualToString:bundleId]){
             NSString* appBundleDir = app.bundleContainerURL.path;
             return appBundleDir;
         }
-        i++;
+    }
+    return @"Nope";
+}
+
+- (NSString*)searchAppDataDir:(NSString*)bundleId
+{
+    for(LSApplicationProxy* app in apps){
+        NSString* identifier = app.bundleIdentifier;
+        if([identifier isEqualToString:bundleId]){
+            NSString* appDataDir = app.dataContainerURL.path;
+            return appDataDir;
+        }
     }
     return @"Nope";
 }

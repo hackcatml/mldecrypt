@@ -20,10 +20,8 @@ func isRootless() -> Bool {
 func dumpstart(_ targetImgName: UnsafeMutablePointer<Int8>?) {
     os_log("[hackcatml] binary dump started")
     
-    var documentsPath = "/var/mobile/Documents/"
-    if isRootless() {
-        documentsPath = "/var/jb" + documentsPath
-    }
+    let appDocumentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.path + "/"
+    var documentsPath = isRootless() ? appDocumentsPath : "/var/mobile/Documents/"
     let dumpPath: String = documentsPath + URL(fileURLWithPath: Bundle.main.executablePath ?? "").lastPathComponent + ".decrypted"
     if FileManager.default.fileExists(atPath: dumpPath) {
         unlink(dumpPath)
