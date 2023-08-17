@@ -80,14 +80,11 @@ func createIpa(bundleId: String) -> Int {
         // Do copy
         try fileMgr.copyItem(at: srcURL, to: dstURL)
         
-        // Replace a original binary file with a dumped one
         let appResourceDir = (AppUtils.sharedInstance().searchAppResourceDir(bundleId)! as NSString).lastPathComponent
         let fileToReplace = workPath.appendingPathComponent("Payload").path + "/\(appResourceDir)/\(bundleExecutable)"
         let replacementFile = "\(documentsPath)\(bundleExecutable).decrypted"
-        try fileMgr.removeItem(atPath: fileToReplace)
-        try fileMgr.copyItem(atPath: replacementFile, toPath: fileToReplace)
         
-        // Fakesigning with ldid
+        // Extract original entitlements from the original binary file with ldid
         var command = "/usr/bin/ldid"
         if isRootless() {
             command = "/var/jb" + command
@@ -96,6 +93,12 @@ func createIpa(bundleId: String) -> Int {
         let entitlementsPath = "\(workPath)/ent.xml"
         let data = out.data(using: .utf8)
         fileMgr.createFile(atPath: entitlementsPath, contents: data)
+        
+        // Replace the original binary file with a dumped one
+        try fileMgr.removeItem(atPath: fileToReplace)
+        try fileMgr.copyItem(atPath: replacementFile, toPath: fileToReplace)
+        
+        // Fakesigning with ldid
         let _ = task(launchPath: command, arguments: "-S\(entitlementsPath)", "\(fileToReplace)")
         
         // Remove files in the Payload dir except for .app dir
@@ -191,9 +194,14 @@ func backup(arguments: [String], bundleId: String) -> Void {
         let decryptedFilePath = appDocumentsPath + decryptedFile
         let srcURL = URL(fileURLWithPath: decryptedFilePath)
         let dstURL = URL(fileURLWithPath: documentsPath + decryptedFile)
+        
         do {
-            try FileManager.default.copyItem(at: srcURL, to: dstURL)
-            try FileManager.default.removeItem(at: srcURL)
+            let fileMgr = FileManager.default
+            if fileMgr.fileExists(atPath: dstURL.path) {
+                try fileMgr.removeItem(at: dstURL)
+            }
+            try fileMgr.copyItem(at: srcURL, to: dstURL)
+            try fileMgr.removeItem(at: srcURL)
         }
         catch {
             print("Error: \(error.localizedDescription)")
