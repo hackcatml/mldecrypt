@@ -1,6 +1,6 @@
 Package: com.hackcatml.mldecrypt
 Name: mldecrypt
-Version: 0.1.2
+Version: 0.1.3
 Architecture: iphoneos-arm
 Description: An awesome tool of some sort!!
 Maintainer: hackcatml
