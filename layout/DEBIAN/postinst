@@ -1,0 +1,6 @@
+if [ -e /var/jb/usr/bin/su ]
+then
+    chmod +s /var/jb/usr/bin/mldecrypt 2>/dev/null
+else
+    chmod +s /usr/local/bin/mldecrypt 2>/dev/null
+fi

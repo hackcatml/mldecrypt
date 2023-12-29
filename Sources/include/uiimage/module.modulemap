@@ -1,0 +1,4 @@
+module uiimage {
+  header "uiimage.h"
+  export *
+}

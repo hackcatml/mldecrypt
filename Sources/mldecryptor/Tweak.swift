@@ -1,6 +1,7 @@
 import os
 import Foundation
 import kittymemswift
+import lsap
 
 let BUFSIZE = 4096
 var image_count: UInt32 = 0
@@ -11,6 +12,13 @@ var target_imgName: UnsafeMutablePointer<Int8>?
 func isRootless() -> Bool {
     let rootlessPath = "/var/jb/usr/bin/su"
     if access(rootlessPath, F_OK) == 0 {
+        return true
+    }
+    return false
+}
+
+func checkFileExists(filePath: String) -> Bool {
+    if access(filePath, F_OK) == 0 {
         return true
     }
     return false
@@ -88,6 +96,14 @@ func dumpstart(_ targetImgName: UnsafeMutablePointer<Int8>?) {
     }
 }
 
+func openAppThread(_: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer? {
+    // code
+    let workspace = LSApplicationWorkspace.default()!
+    workspace.perform(#selector(LSApplicationWorkspace.openApplication(withBundleID:)), with: "com.hackcatml.mldecryptapp")
+    
+    return nil
+}
+
 func imageObserver(_ mh: UnsafePointer<mach_header>?, _ vmaddr_slide: Int) -> Void {
     struct S {
         static var imageObserverImage_counter: UInt32 = 0
@@ -106,6 +122,16 @@ func imageObserver(_ mh: UnsafePointer<mach_header>?, _ vmaddr_slide: Int) -> Vo
     // Delay the dump, in order to wait for the image to be fully loaded into memory
     if(S.imageObserverImage_counter == image_count){
         dumpstart(target_imgName);
+        if let bundleId = Bundle.main.bundleIdentifier {
+            let documentsPath = isRootless() ? "/var/jb/var/mobile/Documents/" : "/var/mobile/Documents/"
+            let file2checkPath = documentsPath + "." + bundleId + "_decrypt_start"
+            os_log("[hackcatml] check file path: %{public}s", file2checkPath)
+            if checkFileExists(filePath: file2checkPath) {
+                os_log("[hackcatml] open mldecryptapp")
+                var ptid: pthread_t?
+                pthread_create(&ptid, nil, openAppThread, nil)
+            }
+        }
         sleep(3);
     }
     return

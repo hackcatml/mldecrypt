@@ -1,4 +1,4 @@
-// swift-tools-version:5.6
+// swift-tools-version:5.7
 
 import PackageDescription
 import Foundation
@@ -25,7 +25,7 @@ struct Theos {
             path = ("~/theos" as NSString).expandingTildeInPath
             resources = "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../lib/swift"
             sdk = path + "/sdks/iPhoneOS16.2.sdk/"
-            target = "12.2"
+            target = "15.0"
             
             return
         }
@@ -67,6 +67,13 @@ let package: Package = .init(
     targets: [
         .target(
             name: "mldecrypt",
+            dependencies: [
+                .product(name:"ZIPFoundation", package: "ZIPFoundation")
+            ],
+            swiftSettings: [.unsafeFlags(swiftFlags)]
+        ),
+        .target(
+            name: "mldecryptapp",
             dependencies: [
                 .product(name:"ZIPFoundation", package: "ZIPFoundation")
             ],

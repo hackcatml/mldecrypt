@@ -42,3 +42,4 @@ make clean && make package
 - [swift-progress-bar](https://github.com/nsscreencast/469-swift-command-line-progress-bar)
 - [cda](https://github.com/ay-kay/cda)
 - [opainject](https://github.com/opa334/opainject)
+- [ProgressHUD](https://github.com/relatedcode/ProgressHUD)

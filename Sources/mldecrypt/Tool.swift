@@ -65,42 +65,51 @@ func createIpa(bundleId: String) -> Int {
     // Clean before
     cleanTempDir()
     
+    /* Copy dir */
     // source path
     let src: String! = AppUtils.sharedInstance().searchAppBundleDir(bundleId)
     // Define real work path
     var workPath = URL(string: "com.hackcatml.mldecrypt.\(randomStringInLength(6))")!
     workPath = URL(string: NSTemporaryDirectory())!.appendingPathComponent(workPath.path)
     let bundleExecutable = AppUtils.sharedInstance().searchAppExecutable(bundleId)!
-    
     do {
-        let srcURL = URL(fileURLWithPath: src)
-        let dstURL = URL(fileURLWithPath: workPath.appendingPathComponent("Payload").path)
-        // Create real work path
         try fileMgr.createDirectory(atPath: workPath.path, withIntermediateDirectories: true, attributes: nil)
-        // Do copy
-        try fileMgr.copyItem(at: srcURL, to: dstURL)
-        
-        let appResourceDir = (AppUtils.sharedInstance().searchAppResourceDir(bundleId)! as NSString).lastPathComponent
-        let fileToReplace = workPath.appendingPathComponent("Payload").path + "/\(appResourceDir)/\(bundleExecutable)"
-        let replacementFile = "\(documentsPath)\(bundleExecutable).decrypted"
-        
-        // Extract original entitlements from the original binary file with ldid
-        var command = "/usr/bin/ldid"
-        if isRootless() {
-            command = "/var/jb" + command
-        }
-        let out = task(launchPath: command, arguments: "-e", "\(fileToReplace)")
-        let entitlementsPath = "\(workPath)/ent.xml"
-        let data = out.data(using: .utf8)
+    } catch {
+        print("Error: \(error.localizedDescription)")
+    }
+    copyDir(from: src, to: workPath.appendingPathComponent("Payload").path, caller: "int")
+    
+    /* ldid */
+    let appResourceDir = (AppUtils.sharedInstance().searchAppResourceDir(bundleId)! as NSString).lastPathComponent
+    let fileToReplace = workPath.appendingPathComponent("Payload").path + "/\(appResourceDir)/\(bundleExecutable)"
+    let replacementFile = "\(documentsPath)\(bundleExecutable).decrypted"
+    
+    // Extract original entitlements from the original binary file with ldid
+    var command = "/usr/bin/ldid"
+    if isRootless() {
+        command = "/var/jb" + command
+    }
+    let out = task(launchPath: command, arguments: "-e", "\(fileToReplace)")
+    let entitlementsPath = "\(workPath)/ent.xml"
+    let data = out.data(using: .utf8)
+    do {
         fileMgr.createFile(atPath: entitlementsPath, contents: data)
         
         // Replace the original binary file with a dumped one
         try fileMgr.removeItem(atPath: fileToReplace)
         try fileMgr.copyItem(atPath: replacementFile, toPath: fileToReplace)
-        
-        // Fakesigning with ldid
-        let _ = task(launchPath: command, arguments: "-S\(entitlementsPath)", "\(fileToReplace)")
-        
+    }
+    catch {
+        print("Something went wrong while doing ldid: \(error.localizedDescription)")
+        // Clean temp dir
+        cleanTempDir()
+        return 1
+    }
+    // Fakesigning with ldid
+    let _ = task(launchPath: command, arguments: "-S\(entitlementsPath)", "\(fileToReplace)")
+    
+    /* Extra work */
+    do {
         // Remove files in the Payload dir except for .app dir
         let directoryContents = try fileMgr.contentsOfDirectory(at: workPath.appendingPathComponent("Payload"), includingPropertiesForKeys: nil)
         for fileUrl in directoryContents {
@@ -110,13 +119,13 @@ func createIpa(bundleId: String) -> Int {
         }
     }
     catch {
-        print("Something went wrong while copying: \(error.localizedDescription)")
+        print("Something went wrong while doing extra work: \(error.localizedDescription)")
         // Clean temp dir
         cleanTempDir()
         return 1
     }
     
-    // Zip
+    /* Zip */
     do {
         // Clean ipa first if it's already there
         if let filesInDocumentsDir = try? fileMgr.contentsOfDirectory(atPath: "\(documentsPath)") {
@@ -155,7 +164,7 @@ func createIpa(bundleId: String) -> Int {
     }
 }
 
-func setDecryptTarget(set: Bool, bundleId: String) -> Void {
+func setDecryptTarget(set: Bool, bundleId: String, caller: String) -> Void {
     var filename = "/Library/MobileSubstrate/DynamicLibraries/mldecryptor.plist"
     if isRootless() {
         filename = "/var/jb" + filename
@@ -177,13 +186,22 @@ func setDecryptTarget(set: Bool, bundleId: String) -> Void {
         let target = [bundleId]
         FilterPrefs.setValue(target, forKey: "Bundles")
         prefs.write(toFile: filename, atomically: true)
-        return
     } else {
         // unset
         let emptyTarget = [""]
         FilterPrefs.setValue(emptyTarget, forKey: "Bundles")
         prefs.write(toFile: filename, atomically: true)
-        return
+    }
+    
+    if caller == "ext" {
+        let fileMgr = FileManager.default
+        let setSigPath = documentsPath + ".mldecrypt_set_done"
+        fileMgr.createFile(atPath: setSigPath, contents: "//dummy".data(using: .utf8))
+        var command = "/usr/bin/chown"
+        if isRootless() {
+            command = "/var/jb" + command
+        }
+        let _ = task(launchPath: command, arguments: "mobile:", "\(setSigPath)")
     }
 }
 
@@ -192,20 +210,8 @@ func backup(arguments: [String], bundleId: String) -> Void {
         let decryptedFile = AppUtils.sharedInstance().searchAppExecutable(bundleId) + ".decrypted"
         let appDocumentsPath = AppUtils.sharedInstance().searchAppDataDir(bundleId) + "/Documents/"
         let decryptedFilePath = appDocumentsPath + decryptedFile
-        let srcURL = URL(fileURLWithPath: decryptedFilePath)
-        let dstURL = URL(fileURLWithPath: documentsPath + decryptedFile)
         
-        do {
-            let fileMgr = FileManager.default
-            if fileMgr.fileExists(atPath: dstURL.path) {
-                try fileMgr.removeItem(at: dstURL)
-            }
-            try fileMgr.copyItem(at: srcURL, to: dstURL)
-            try fileMgr.removeItem(at: srcURL)
-        }
-        catch {
-            print("Error: \(error.localizedDescription)")
-        }
+        copyFile(from: decryptedFilePath, to: documentsPath + decryptedFile, caller: "int")
     }
     
     let documentsURL = URL(string: documentsPath)!
@@ -224,7 +230,7 @@ func backup(arguments: [String], bundleId: String) -> Void {
             if arguments.count == 3 && arguments[1].contains("-b") || arguments.contains("-b") {
                 print("ipa created at \(documentsURL.appendingPathComponent(bundleExecutable + ".ipa").path)\n")
             }
-            setDecryptTarget(set: false, bundleId: bundleId)
+            setDecryptTarget(set: false, bundleId: bundleId, caller: "int")
             exit(0)
         }
     }
@@ -300,7 +306,7 @@ func opainject(arguments: [String]) -> Void {
         exit(-4)
     }
     
-    setDecryptTarget(set: true, bundleId: bundleId)
+    setDecryptTarget(set: true, bundleId: bundleId, caller: "int")
     
     var procTask: task_t = 0
     let kret = task_for_pid(mach_task_self_, targetPid, &procTask)
@@ -336,6 +342,92 @@ func opainject(arguments: [String]) -> Void {
     exit(0)
 }
 
+func openAppWithBundleId(bundleId: String) -> Void {
+    // open the target app
+    let workspace = LSApplicationWorkspace.defaultWorkspace() as! NSObject
+    workspace.perform(Selector(("openApplicationWithBundleID:")), with: bundleId)
+}
+
+func copyFile(from: String, to: String, caller: String) -> Void {
+    let srcURL = URL(fileURLWithPath: from)
+    let dstURL = URL(fileURLWithPath: to)
+    
+    do {
+        let fileMgr = FileManager.default
+        if fileMgr.fileExists(atPath: srcURL.path) {
+            // remove if it's there already
+            if fileMgr.fileExists(atPath: dstURL.path) {
+                try fileMgr.removeItem(at: dstURL)
+            }
+            // copy the src
+            try fileMgr.copyItem(at: srcURL, to: dstURL)
+//            try fileMgr.removeItem(at: srcURL)
+            if caller == "ext" {
+                let copyFileSigPath = documentsPath + ".mldecrypt_copy_done"
+                fileMgr.createFile(atPath: copyFileSigPath, contents: "//dummy".data(using: .utf8))
+                var command = "/usr/bin/chown"
+                if isRootless() {
+                    command = "/var/jb" + command
+                }
+                let _ = task(launchPath: command, arguments: "mobile:", "\(copyFileSigPath)")
+            }
+        } else {
+            return
+        }
+    }
+    catch {
+        print("Error: \(error.localizedDescription)")
+    }
+}
+
+func copyDir(from: String, to: String, caller: String) -> Void {
+    let srcURL = URL(fileURLWithPath: from)
+    let dstURL = URL(fileURLWithPath: to)
+    do {
+        // Do copy
+        let fileMgr = FileManager.default
+        try fileMgr.copyItem(at: srcURL, to: dstURL)
+        if caller == "ext" {
+            let copyDirSigPath = documentsPath + ".mldecrypt_copydir_done"
+            fileMgr.createFile(atPath: copyDirSigPath, contents: "//dummy".data(using: .utf8))
+            var command = "/usr/bin/chown"
+            if isRootless() {
+                command = "/var/jb" + command
+            }
+            let _ = task(launchPath: command, arguments: "mobile:", "\(copyDirSigPath)")
+        }
+    }
+    catch {
+        print("Error: \(error.localizedDescription)")
+    }
+}
+
+func cleanDir(path: String, caller: String) -> Void {
+    let fileMgr = FileManager.default
+    let cleanDirPathURL = URL(fileURLWithPath: path)
+    
+    if let fileInDir = try? fileMgr.contentsOfDirectory(atPath: cleanDirPathURL.path) {
+        for file in fileInDir {
+            let filefullpath = cleanDirPathURL.appendingPathComponent(file).path
+            // print("file: \(URL(fileURLWithPath: filefullpath).lastPathComponent)")
+            if URL(fileURLWithPath: filefullpath).lastPathComponent.hasPrefix("com.hackcatml.mldecrypt.") ||
+                URL(fileURLWithPath: filefullpath).lastPathComponent.hasPrefix(".mldecrypt_") ||
+                URL(fileURLWithPath: filefullpath).lastPathComponent.hasSuffix("_decrypt_start") {
+                try? fileMgr.removeItem(atPath: filefullpath)
+            }
+        }
+    }
+    if caller == "ext" {
+        let cleanDirSigPath = documentsPath + ".mldecrypt_cleandir_done"
+        fileMgr.createFile(atPath: cleanDirSigPath, contents: "//dummy".data(using: .utf8))
+        var command = "/usr/bin/chown"
+        if isRootless() {
+            command = "/var/jb" + command
+        }
+        let _ = task(launchPath: command, arguments: "mobile:", "\(cleanDirSigPath)")
+    }
+}
+
 let helpString: String = """
 \nUsage:
 \tmldecrypt list, -l\t\tList installed applications
@@ -349,8 +441,9 @@ let helpString: String = """
 @main
 public struct mldecrypt {
     public static func main() {
-        let arguments = CommandLine.arguments
+        setuid(0)
         
+        let arguments = CommandLine.arguments
         guard arguments.count >= 2 else {
             print(helpString)
             exit(1)
@@ -397,18 +490,47 @@ public struct mldecrypt {
         } else if arguments.count == 2 || (arguments.count == 3 && arguments[1].contains("-b")) {
             let bundleId = arguments.count == 2 ? arguments[1] : arguments[2]
             
-            setDecryptTarget(set: true, bundleId: bundleId)
-            
+            setDecryptTarget(set: true, bundleId: bundleId, caller: "int")
+ 
             print("\nOkay. It's ready to decrypt \"\(bundleId)\"'s binary")
             print("Launching the app...\n")
             
             sleep(1)
+            // clean any files made by mldecryptapp
+            // caller: int == called by mldecrypt, ext == called by the other tool (mldecryptapp)
+            cleanDir(path: documentsPath, caller: "int")
+            
             // open the target app
-            let workspace = LSApplicationWorkspace.defaultWorkspace() as! NSObject
-            workspace.perform(Selector(("openApplicationWithBundleID:")), with: bundleId)
+            openAppWithBundleId(bundleId: bundleId)
             
             sleep(3)
             backup(arguments: arguments, bundleId: bundleId)
+        } else if arguments.count == 5 && (arguments[1] == "set" || arguments[1] == "-s") {
+            let bool = arguments[2]
+            let bundleId = arguments[3]
+            let caller = arguments[4]
+            if bool == "true" {
+                setDecryptTarget(set: true, bundleId: bundleId, caller: caller)
+            } else {
+                setDecryptTarget(set: false, bundleId: bundleId, caller: caller)
+            }
+        } else if arguments.count == 3 && (arguments[1] == "open" || arguments[1] == "-o") {
+            let bundleId = arguments[2]
+            openAppWithBundleId(bundleId: bundleId)
+        } else if arguments.count == 5 && (arguments[1] == "copy" || arguments[1] == "-cf") {
+            let srcPath = arguments[2]
+            let dstPath = arguments[3]
+            let caller = arguments[4]
+            copyFile(from: srcPath, to: dstPath, caller: caller)
+        } else if arguments.count == 5 && (arguments[1] == "copydir" || arguments[1] == "-cd") {
+            let srcDirPath = arguments[2]
+            let dstDirPath = arguments[3]
+            let caller = arguments[4]
+            copyDir(from: srcDirPath, to: dstDirPath, caller: caller)
+        } else if arguments.count == 4 && (arguments[1].contains("cleandir") || arguments[1] == "-cld") {
+            let cleanDirPath = arguments[2]
+            let caller = arguments[3]
+            cleanDir(path: cleanDirPath, caller: caller)
         } else {
             print(helpString)
             exit(1)
