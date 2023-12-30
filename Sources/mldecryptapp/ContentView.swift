@@ -148,7 +148,7 @@ struct ContentView: View {
                         return
                     }
                     
-                    if self.isCreatingIpa {
+                    if self.isCreatingIpa || self.showDumpAlert {
                         return
                     }
                     
@@ -171,7 +171,7 @@ struct ContentView: View {
                         let dstPath = documentsPath + decryptedFile
 //                        os_log("[hackcatml] decryptedFilePath: %{public}s, dstPath: %{public}s", decryptedFilePath, dstPath)
                         callMldecryptWithOptions(options: ["copy", decryptedFilePath, dstPath, "ext"])
-                        // after copying dumped binary, mldecryptor creates a file
+                        // after copying dumped binary, mldecrypt creates a file
                         let copyFileSigPath = documentsPath + ".mldecrypt_copy_done"
                         checkFileExistenceAndThen(path: copyFileSigPath, interval: 0.01) {
                             unlink(self.dumpFileSigPath!)
