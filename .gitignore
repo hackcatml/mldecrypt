@@ -10,3 +10,4 @@ xcuserdata/
 packages/
 .DS_Store
 .swiftpm/
+backup/

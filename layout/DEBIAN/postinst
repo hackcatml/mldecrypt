@@ -1,6 +1,8 @@
 if [ -e /var/jb/usr/bin/su ]
 then
     chmod +s /var/jb/usr/bin/mldecrypt 2>/dev/null
+    ldid -S/var/jb/Applications/mldecryptapp.app/ent.plist /var/jb/Applications/mldecryptapp.app/mldecryptapp
+    ldid -S/var/jb/Applications/mldecryptapp.app/entitlements.plist /var/jb/usr/bin/mldecrypt
 else
     chmod +s /usr/local/bin/mldecrypt 2>/dev/null
 fi
