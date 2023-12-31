@@ -7,6 +7,7 @@ let BUFSIZE = 4096
 var image_count: UInt32 = 0
 var image_index: UInt32 = 0
 var target_imgName: UnsafeMutablePointer<Int8>?
+var thread: Thread?
 
 // Check if it's rootless
 func isRootless() -> Bool {
@@ -96,12 +97,10 @@ func dumpstart(_ targetImgName: UnsafeMutablePointer<Int8>?) {
     }
 }
 
-func openAppThread(_: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer? {
+func openAppThread() {
     // code
     let workspace = LSApplicationWorkspace.default()!
     workspace.perform(#selector(LSApplicationWorkspace.openApplication(withBundleID:)), with: "com.hackcatml.mldecryptapp")
-    
-    return nil
 }
 
 func imageObserver(_ mh: UnsafePointer<mach_header>?, _ vmaddr_slide: Int) -> Void {
@@ -125,11 +124,10 @@ func imageObserver(_ mh: UnsafePointer<mach_header>?, _ vmaddr_slide: Int) -> Vo
         if let bundleId = Bundle.main.bundleIdentifier {
             let documentsPath = isRootless() ? "/var/jb/var/mobile/Documents/" : "/var/mobile/Documents/"
             let file2checkPath = documentsPath + "." + bundleId + "_decrypt_start"
-            os_log("[hackcatml] check file path: %{public}s", file2checkPath)
+//            os_log("[hackcatml] check file path: %{public}s", file2checkPath)
             if checkFileExists(filePath: file2checkPath) {
                 os_log("[hackcatml] open mldecryptapp")
-                var ptid: pthread_t?
-                pthread_create(&ptid, nil, openAppThread, nil)
+                thread!.start()
             }
         }
         sleep(3);
@@ -141,6 +139,9 @@ struct Tweak {
     static func ctor() {
         // Code goes here
         os_log("[hackcatml] mldecrytor start")
+        thread = Thread(block: {
+            openAppThread()
+        })
         image_count = _dyld_image_count()
         _dyld_register_func_for_add_image(imageObserver)
     }
