@@ -127,7 +127,7 @@ struct ContentView: View {
                         self.dumpFileSigPath =  self.documentsPath + "." + self.selectedApp!.applicationIdentifier + "_decrypt_start"
                         let fileMgr = FileManager.default
                         if fileMgr.createFile(atPath: self.dumpFileSigPath!, contents: "//dummy".data(using: .utf8)) {
-                            os_log("[hackcatml] file made at %{public}s", self.dumpFileSigPath!)
+//                            os_log("[hackcatml] file made at %{public}s", self.dumpFileSigPath!)
                             launchApp(app: self.selectedApp!)
                         }
                     },
