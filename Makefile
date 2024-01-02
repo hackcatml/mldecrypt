@@ -33,7 +33,7 @@ $(TOOL_NAME)_FILES += $(wildcard Sources/include/opainject/*.m)
 $(TOOL_NAME)_CFLAGS = -w
 $(TOOL_NAME)_SWIFTFLAGS = -ISources/include
 ifeq ($(ROOTLESS),1)
-$(TOOL_NAME)_INSTALL_PATH = /var/jb/usr/bin
+$(TOOL_NAME)_INSTALL_PATH = /usr/bin
 else
 $(TOOL_NAME)_INSTALL_PATH = /usr/local/bin
 endif
@@ -60,6 +60,8 @@ $(LIBRARY_NAME)_LIBRARIES = substrate
 include $(THEOS)/makefiles/common.mk
 include $(THEOS_MAKE_PATH)/application.mk
 include $(THEOS_MAKE_PATH)/library.mk
+include $(THEOS_MAKE_PATH)/tool.mk
+include $(THEOS_MAKE_PATH)/aggregate.mk
 
 ifeq ($(ROOTLESS),1)
 before-package::
@@ -67,7 +69,7 @@ before-package::
 	cp info.plist $(THEOS_STAGING_DIR)/Applications/$(APPLICATION_NAME).app/
 	ldid -Sent.plist $(THEOS_STAGING_DIR)/Applications/$(APPLICATION_NAME).app/$(APPLICATION_NAME)
 	# for mldecrypt
-	ldid -S./entitlements.plist $(THEOS_STAGING_DIR)/var/jb/usr/bin/$(TOOL_NAME);
+	ldid -S./entitlements.plist $(THEOS_STAGING_DIR)/usr/bin/$(TOOL_NAME);
 
 # if ldid doesn't work...push entitlements.plist and do ldid on the device
 after-install::
@@ -86,10 +88,7 @@ before-package::
 # if ldid doesn't work...push entitlements.plist and do ldid on the device
 after-install::
 	scp -P2222 ent.plist root@localhost:~/
-	install.exec "ldid -Sent.plist /var/jb/Applications/mldecryptapp.app/mldecryptapp"
+	install.exec "ldid -Sent.plist /Applications/mldecryptapp.app/mldecryptapp"
 	scp -P2222 entitlements.plist root@localhost:~/
 	install.exec "ldid -Sentitlements.plist /usr/local/bin/mldecrypt"
 endif
-
-include $(THEOS_MAKE_PATH)/tool.mk
-include $(THEOS_MAKE_PATH)/aggregate.mk

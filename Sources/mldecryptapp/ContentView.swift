@@ -270,6 +270,7 @@ struct ContentView: View {
             fileMgr.createFile(atPath: entitlementsPath, contents: data)
             
             // Replace the original binary file with a dumped one
+            let _ = task(launchPath: command, arguments: "-S\(entitlementsPath)", "\(replacementFile)")
             let copyFileSigPath = documentsPath + ".mldecrypt_copy_done"
             callMldecryptWithOptions(options: ["copy", replacementFile, fileToReplace, "ext"])
             checkFileExistenceAndThen(path: copyFileSigPath, interval: 0.01) {
