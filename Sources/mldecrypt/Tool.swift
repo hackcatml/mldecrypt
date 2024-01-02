@@ -105,7 +105,7 @@ func createIpa(bundleId: String) -> Int {
         cleanTempDir()
         return 1
     }
-    // Fakesigning with ldid
+    // signing with ldid
     let _ = task(launchPath: command, arguments: "-S\(entitlementsPath)", "\(fileToReplace)")
     
     /* Extra work */
