@@ -1,6 +1,6 @@
 Package: com.hackcatml.mldecrypt
 Name: mldecrypt
-Version: 0.2.2
+Version: 0.2.3
 Architecture: iphoneos-arm
 Description: iOS app binary dump & backup tool
 Maintainer: hackcatml
