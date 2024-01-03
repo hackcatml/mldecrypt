@@ -263,15 +263,9 @@ struct ContentView: View {
             let replacementFile = "\(documentsPath)\(bundleExecutable).decrypted"
 //            os_log("[hackcatml] fileToReplace: %{public}s, replacementFile: %{public}s", fileToReplace, replacementFile)
             
-            let command = isRootless() ? "/var/jb/usr/bin/ldid" : "/usr/bin/ldid"
-            // extract the entitlements from the dumped binary. it's same as the original one
-            let out = task(launchPath: command, arguments: "-e", replacementFile)
-            let entitlementsPath = workPathURL!.path + "/ent.xml"
-            let data = out.data(using: .utf8)
-            fileMgr.createFile(atPath: entitlementsPath, contents: data)
-            
             // signing the dumped binary with ldid.
-            let _ = task(launchPath: command, arguments: "-S\(entitlementsPath)", "\(replacementFile)")
+            let command = isRootless() ? "/var/jb/usr/bin/ldid" : "/usr/bin/ldid"
+            let _ = task(launchPath: command, arguments: "-S", "-M", "\(replacementFile)")
             // Replace the original binary file with the dumped one
             let copyFileSigPath = documentsPath + ".mldecrypt_copy_done"
             callMldecryptWithOptions(options: ["copy", replacementFile, fileToReplace, "ext"])
