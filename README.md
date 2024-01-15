@@ -2,6 +2,12 @@
 iOS binary memory dump & backup ipa tool based on  [dump-ios](https://codeshare.frida.re/@lichao890427/dump-ios/)
 
 # Usage
+
+## Dependencies
+ldid<br> 
+ellekit (for rootless)<br>
+substitute (for rootful)
+
 ## App
 ![2023-12-30 10 46 36 AM](https://github.com/hackcatml/mldecrypt/assets/75507443/77dbc58e-a7f6-4282-8a9c-df18119b8053)
 
